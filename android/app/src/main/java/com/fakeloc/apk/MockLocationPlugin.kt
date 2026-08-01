@@ -1,20 +1,73 @@
 package com.fakelocation.app
 
-import android.content.Context
-import android.location.Location
-import android.location.LocationManager
+import android.content.Intent
 import android.os.Build
-import android.os.SystemClock
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 
+import android.app.AppOpsManager
+import android.content.Context
+import android.location.LocationManager
+import android.provider.Settings
+import com.getcapacitor.JSObject
+
 @CapacitorPlugin(name = "MockLocation")
 class MockLocationPlugin : Plugin() {
 
-    private var locationManager: LocationManager? = null
-    private val providerName = LocationManager.GPS_PROVIDER
+    @PluginMethod
+    fun checkConfig(call: PluginCall) {
+        val context = context
+        val ret = JSObject()
+
+        // 1. Comprobar si el GPS está activado
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+
+        // 2. Comprobar si la app está seleccionada como Mock Location App en Desarrollo
+        var isMockAppSelected = false
+        try {
+            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                appOps.unsafeCheckOpNoThrow(
+                    AppOpsManager.OPSTR_MOCK_LOCATION,
+                    android.os.Process.myUid(),
+                    context.packageName
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                appOps.checkOpNoThrow(
+                    AppOpsManager.OPSTR_MOCK_LOCATION,
+                    android.os.Process.myUid(),
+                    context.packageName
+                )
+            }
+            isMockAppSelected = (mode == AppOpsManager.MODE_ALLOWED)
+        } catch (e: Exception) {
+            isMockAppSelected = false
+        }
+
+        ret.put("isGpsEnabled", isGpsEnabled)
+        ret.put("isMockAppSelected", isMockAppSelected)
+        call.resolve(ret)
+    }
+
+    @PluginMethod
+    fun openDeveloperSettings(call: PluginCall) {
+        val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun openLocationSettings(call: PluginCall) {
+        val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+        call.resolve()
+    }
 
     @PluginMethod
     fun startMocking(call: PluginCall) {
@@ -22,51 +75,30 @@ class MockLocationPlugin : Plugin() {
         val lng = call.getDouble("lng")
 
         if (lat == null || lng == null) {
-            call.reject("Latitud y longitud son requeridas")
+            call.reject("Latitud y longitud requeridas")
             return
         }
 
-        try {
-            locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-            
-            // Añadir el proveedor de prueba
-            locationManager?.addTestProvider(
-                providerName,
-                false, false, false, false, true, true, true,
-                android.location.Provider.POWER_LOW,
-                android.location.Provider.ACCURACY_FINE
-            )
-            locationManager?.setTestProviderEnabled(providerName, true)
-
-            // Crear la ubicación falsa
-            val mockLocation = Location(providerName).apply {
-                latitude = lat
-                longitude = lng
-                altitude = 3.0
-                time = System.currentTimeMillis()
-                accuracy = 1.0f
-                elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-            }
-
-            // Inyectar en el sistema
-            locationManager?.setTestProviderLocation(providerName, mockLocation)
-
-            // TODO: Iniciar ForegroundService aquí para mantener el bucle en 2º plano
-            call.resolve()
-        } catch (e: SecurityException) {
-            call.reject("Permiso denegado. Asegúrate de habilitar esta app en las Opciones de Desarrollador como 'Aplicación de simulación de ubicación'.", e)
-        } catch (e: Exception) {
-            call.reject("Error al iniciar mock location: ${e.message}", e)
+        val context = context
+        val intent = Intent(context, MockLocationService::class.java).apply {
+            putExtra("lat", lat)
+            putExtra("lng", lng)
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+
+        call.resolve()
     }
 
     @PluginMethod
     fun stopMocking(call: PluginCall) {
-        try {
-            locationManager?.removeTestProvider(providerName)
-            call.resolve()
-        } catch (e: Exception) {
-            call.reject("Error al detener mock location: ${e.message}", e)
-        }
+        val context = context
+        val intent = Intent(context, MockLocationService::class.java)
+        context.stopService(intent)
+        call.resolve()
     }
 }

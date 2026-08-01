@@ -35,6 +35,13 @@
 
         </activity>
 
+        <!-- Servicio en Segundo Plano para mantener el GPS activo -->
+        <service 
+            android:name=".MockLocationService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

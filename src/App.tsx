@@ -1,280 +1,208 @@
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, ZoomControl } from 'react-leaflet';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// --- Corrección de icono por defecto de Leaflet ---
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import MockLocation, { type MockConfigStatus } from './services/MockLocation';
+import { ConfigCheckModal } from './components/ConfigCheckModal';
 
-const DefaultIcon = L.icon({
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
+import iconUrl from 'leaflet/dist/images/marker-icon.png';
+import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
+import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
+
+const customIcon = L.icon({
+  iconUrl,
+  iconRetinaUrl,
+  shadowUrl,
+  iconSize: [25, 41],
   iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
 });
-L.Marker.prototype.options.icon = DefaultIcon;
 
+export const App: React.FC = () => {
+  const [position, setPosition] = useState<[number, number]>([40.416775, -3.70379]);
+  const [isMocking, setIsMocking] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [configStatus, setConfigStatus] = useState<MockConfigStatus | null>(null);
 
-// --- Definición del Plugin Nativo (MOCK para que no de error al compilar en web) ---
-// En producción, Capacitor cargará el plugin real de Android.
-const MockLocationPlugin = (window as any).Capacitor?.Plugins?.MockLocation || {
-  startMocking: async (coords: any) => console.log('Mock Nativo simulado en WEB:', coords),
-  stopMocking: async () => console.log('Mock Nativo detenido en WEB'),
-};
+  const checkSystemConfig = async () => {
+    try {
+      const status = await MockLocation.checkConfig();
+      setConfigStatus(status);
+    } catch (e) {
+      console.warn('Ejecutando en entorno Web o Plugin no registrado aún:', e);
+    }
+  };
 
-interface LatLng {
-  lat: number;
-  lng: number;
-}
+  useEffect(() => {
+    checkSystemConfig();
+  }, []);
 
-// --- Estilos CSS en JS para Glassmorphism ---
-const styles = {
-  appContainer: {
-    height: '100vh',
-    width: '100vw',
-    position: 'relative' as 'relative',
-    fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    overflow: 'hidden',
-  },
-  map: {
-    height: '100%',
-    width: '100%',
-    zIndex: 0,
-  },
-  // Contenedor flotante superior (Buscador)
-  glassPanelTop: {
-    position: 'absolute' as 'absolute',
-    top: '20px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: '90%',
-    maxWidth: '500px',
-    zIndex: 1000,
-    
-    // Glassmorphism core
-    background: 'rgba(255, 255, 255, 0.15)',
-    backdropFilter: 'blur(10px)',
-    WebkitBackdropFilter: 'blur(10px)', // Soporte iOS
-    borderRadius: '16px',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.2)',
-    
-    padding: '15px',
-  },
-  // Contenedor flotante inferior (Estado y Botón)
-  glassPanelBottom: {
-    position: 'absolute' as 'absolute',
-    bottom: '30px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: '90%',
-    maxWidth: '500px',
-    zIndex: 1000,
-    
-    background: 'rgba(20, 20, 20, 0.6)', // Variación oscura
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
-    borderRadius: '20px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
-    
-    padding: '20px',
-    color: 'white',
-    display: 'flex',
-    flexDirection: 'column' as 'column',
-    gap: '15px',
-    alignItems: 'center',
-  },
-  searchForm: {
-    display: 'flex',
-    gap: '10px',
-  },
-  input: {
-    flex: 1,
-    padding: '12px 15px',
-    borderRadius: '10px',
-    border: 'none',
-    background: 'rgba(255, 255, 255, 0.7)',
-    fontSize: '16px',
-    outline: 'none',
-    color: '#333',
-  },
-  searchButton: {
-    padding: '12px 20px',
-    borderRadius: '10px',
-    border: 'none',
-    background: '#4a90e2', // Azul moderno
-    color: 'white',
-    fontWeight: 'bold' as 'bold',
-    cursor: 'pointer',
-    fontSize: '16px',
-    transition: 'background 0.2s',
-  },
-  coordsTag: {
-    background: 'rgba(255, 255, 255, 0.1)',
-    padding: '5px 10px',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    letterSpacing: '0.5px',
-  },
-  actionButton: {
-    width: '100%',
-    padding: '15px',
-    borderRadius: '12px',
-    border: 'none',
-    color: 'white',
-    fontWeight: 'bold' as 'bold',
-    fontSize: '16px',
-    cursor: 'pointer',
-    textTransform: 'uppercase' as 'uppercase',
-    letterSpacing: '1px',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-  },
-};
-
-
-export default function App() {
-  // Madrid por defecto
-  const [position, setPosition] = useState<LatLng>({ lat: 40.416775, lng: -3.703790 });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isMocking, setIsMocking] = useState(false);
-  const [mapRef, setMapRef] = useState<L.Map | null>(null);
-
-  // Componente interno para manejar eventos del mapa
-  function MapEvents() {
+  const MapEvents = () => {
     useMapEvents({
       click(e) {
-        if (!isMocking) { // No permitir cambiar marcador si está activada la simulación
-          setPosition(e.latlng);
-        }
+        setPosition([e.latlng.lat, e.latlng.lng]);
       },
     });
-    return position ? <Marker position={position} /> : null;
-  }
+    return null;
+  };
 
-  // Buscador de lugares mediante Nominatim API
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery) return;
+    if (!searchQuery.trim()) return;
+
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
-      const data = await res.json();
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`
+      );
+      const data = await response.json();
+
       if (data && data.length > 0) {
-        const newPos = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-        setPosition(newPos);
-        // Centrar mapa suavemente
-        mapRef?.flyTo(newPos, 14);
-      }
-    } catch (error) {
-      console.error("Error en búsqueda:", error);
-    }
-  };
-
-  const toggleMockLocation = async () => {
-    try {
-      if (!isMocking) {
-        // --- INVOCACIÓN AL PLUGIN NATIVO DE CAPACITOR ---
-        await MockLocationPlugin.startMocking({ lat: position.lat, lng: position.lng });
-        setIsMocking(true);
+        const { lat, lon } = data[0];
+        setPosition([parseFloat(lat), parseFloat(lon)]);
       } else {
-        // --- DETENER PLUGIN NATIVO ---
-        await MockLocationPlugin.stopMocking();
-        setIsMocking(false);
+        alert('Ubicación no encontrada');
       }
     } catch (error) {
-      console.error("Error controlando el plugin nativo:", error);
-      alert("Error al comunicarse con el sistema nativo. Revisa los permisos.");
+      console.error('Error al buscar ubicación:', error);
     }
   };
 
-  // Colores dinámicos para el botón de acción
-  const getActionButtonStyle = () => {
-    const base = styles.actionButton;
-    if (isMocking) {
-      return { ...base, background: '#ea4335' }; // Rojo Google
+  const toggleMocking = async () => {
+    try {
+      if (isMocking) {
+        await MockLocation.stopMocking();
+        setIsMocking(false);
+      } else {
+        await MockLocation.startMocking({
+          lat: position[0],
+          lng: position[1],
+        });
+        setIsMocking(true);
+      }
+    } catch (e) {
+      console.error('Error al comunicarse con el plugin nativo:', e);
+      alert('Error iniciando la simulación de GPS.');
     }
-    return { ...base, background: '#34a853' }; // Verde Google
   };
 
   return (
-    <div style={styles.appContainer}>
-      
-      {/* 1. Panel Superior (Buscador) - Glassmorphism Claro */}
-      <div style={styles.glassPanelTop}>
-        <form onSubmit={handleSearch} style={styles.searchForm}>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar ciudad, calle..."
-            style={styles.input}
-            disabled={isMocking}
-          />
-          <button type="submit" style={styles.searchButton} disabled={isMocking}>
-            🔍
-          </button>
-        </form>
-      </div>
+    <div style={styles.container}>
+      <ConfigCheckModal config={configStatus} onRecheck={checkSystemConfig} />
 
-      {/* 2. Mapa Full Screen */}
-      <MapContainer 
-        center={position} 
-        zoom={13} 
-        style={styles.map} 
-        zoomControl={false} // Desactivamos por defecto para moverlo
-        ref={setMapRef}
+      <MapContainer
+        center={position}
+        zoom={13}
+        style={{ width: '100%', height: '100vh', zIndex: 1 }}
       >
-        <TileLayer 
-          attribution='&copy; OpenStreetMap contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <ZoomControl position="topright" /> {/* Movemos zoom para no estorbar */}
+        <Marker position={position} icon={customIcon} />
         <MapEvents />
       </MapContainer>
 
-      {/* 3. Panel Inferior (Estado y Control) - Glassmorphism Oscuro */}
-      <div style={styles.glassPanelBottom}>
-        <div style={{textAlign: 'center'}}>
-          <div style={{fontSize: '14px', opacity: 0.8, marginBottom: '5px'}}>
-            Ubicación seleccionada:
-          </div>
-          <div style={styles.coordsTag}>
-            {position.lat.toFixed(6)}, {position.lng.toFixed(6)}
-          </div>
-        </div>
-        
-        <button 
-          onClick={toggleMockLocation}
-          style={getActionButtonStyle()}
-        >
-          {isMocking ? '🛑 Detener Simulación' : '📍 Iniciar Ubicación Falsa'}
-        </button>
-        
-        {isMocking && (
-          <div style={{fontSize: '12px', color: '#fab005', fontWeight: 'bold', animation: 'pulse 1.5s infinite'}}>
-            ⚠️ GPS DEL SISTEMA FALSEADO
-          </div>
-        )}
-      </div>
+      <div style={styles.glassPanel}>
+        <form onSubmit={handleSearch} style={styles.searchForm}>
+          <input
+            type="text"
+            placeholder="Buscar ciudad, calle..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={styles.input}
+          />
+          <button type="submit" style={styles.btnSearch}>
+            🔍
+          </button>
+        </form>
 
-      {/* CSS para la animación de pulso (puedes ponerlo en index.css) */}
-      <style>{`
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.5; }
-          100% { opacity: 1; }
-        }
-        button:active {
-          transform: scale(0.98);
-        }
-        button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-      `}</style>
+        <div style={styles.coordsBox}>
+          <div><strong>Lat:</strong> {position[0].toFixed(6)}</div>
+          <div><strong>Lng:</strong> {position[1].toFixed(6)}</div>
+        </div>
+
+        <button
+          onClick={toggleMocking}
+          style={{
+            ...styles.btnAction,
+            backgroundColor: isMocking ? '#ef4444' : '#10b981',
+          }}
+        >
+          {isMocking ? '🛑 Detener Simulación' : '🚀 Iniciar Simulación'}
+        </button>
+      </div>
     </div>
   );
-}
+};
+
+const styles: Record<string, React.CSSProperties> = {
+  container: {
+    position: 'relative',
+    width: '100vw',
+    height: '100vh',
+    overflow: 'hidden',
+  },
+  glassPanel: {
+    position: 'absolute',
+    top: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 1000,
+    width: '90%',
+    maxWidth: '400px',
+    padding: '16px',
+    background: 'rgba(20, 20, 30, 0.75)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    borderRadius: '16px',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+    color: '#fff',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  searchForm: {
+    display: 'flex',
+    gap: '8px',
+  },
+  input: {
+    flex: 1,
+    padding: '10px 14px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    background: 'rgba(255, 255, 255, 0.1)',
+    color: '#fff',
+    outline: 'none',
+    fontSize: '0.9rem',
+  },
+  btnSearch: {
+    padding: '10px 14px',
+    borderRadius: '10px',
+    border: 'none',
+    background: 'rgba(255, 255, 255, 0.2)',
+    color: '#fff',
+    cursor: 'pointer',
+  },
+  coordsBox: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '0.85rem',
+    background: 'rgba(0, 0, 0, 0.3)',
+    padding: '8px 12px',
+    borderRadius: '8px',
+  },
+  btnAction: {
+    width: '100%',
+    padding: '12px',
+    border: 'none',
+    borderRadius: '10px',
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+};
+
+export default App;
