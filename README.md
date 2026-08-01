@@ -41,3 +41,18 @@ La aplicación combina tecnologías web modernas con un puente nativo de Android
  │  - LocationManager (setTestProviderLocation)                 │
  │  - Foreground Service (Persistencia en 2º plano)             │
  └──────────────────────────────────────────────────────────────┘
+
+## ❓ Solución de Problemas Frecuentes
+
+* **¿Por qué la ubicación no cambia en otras apps?**
+  * Asegúrate de haber seleccionado **FakeLocation** dentro de *Ajustes de desarrollador > Seleccionar aplicación para simular ubicación*.
+  * Verifica que la aplicación tenga concedidos los permisos de **Ubicación** en la configuración de Android.
+* **¿Por qué Android cancela el servicio al bloquear la pantalla?**
+  * Desactiva la optimización de batería de Android para esta aplicación (*Ajustes > Batería > Optimización de batería > FakeLocation > No optimizar*).
+
+
+---
+
+## ⚠️ Exención de Responsabilidad / Disclaimer
+
+Este software ha sido desarrollado **exclusivamente con fines educativos, de aprendizaje y de pruebas de desarrollo**. El creador de este proyecto no se hace responsable del uso indebido que terceros puedan darle a esta herramienta, incluyendo la vulneración de términos de servicio de aplicaciones de terceros, la alteración de registros de asistencia o la evadir restricciones geográficas.
