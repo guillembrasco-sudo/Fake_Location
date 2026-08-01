@@ -41,6 +41,7 @@ La aplicación combina tecnologías web modernas con un puente nativo de Android
  │  - LocationManager (setTestProviderLocation)                 │
  │  - Foreground Service (Persistencia en 2º plano)             │
  └──────────────────────────────────────────────────────────────┘
+```
 
 ## ❓ Solución de Problemas Frecuentes
 
