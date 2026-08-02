@@ -1,8 +1,10 @@
 import { registerPlugin } from '@capacitor/core';
 
 export interface MockConfigStatus {
+  hasLocationPermission: boolean;
   isGpsEnabled: boolean;
   isMockAppSelected: boolean;
+  hasNotificationPermission: boolean;
 }
 
 export interface MockLocationPlugin {

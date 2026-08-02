@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -23,6 +23,14 @@ export const App: React.FC = () => {
   const [isMocking, setIsMocking] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [configStatus, setConfigStatus] = useState<MockConfigStatus | null>(null);
+
+  const MapController: React.FC<{ center: [number, number] }> = ({ center }) => {
+    const map = useMap();
+    useEffect(() => {
+      map.setView(center, map.getZoom());
+    }, [center, map]);
+    return null;
+  };
 
   const checkSystemConfig = async () => {
     try {
@@ -79,9 +87,14 @@ export const App: React.FC = () => {
         });
         setIsMocking(true);
       }
-    } catch (e) {
-      console.error('Error al comunicarse con el plugin nativo:', e);
-      alert('Error iniciando la simulación de GPS.');
+    } catch (e: any) {
+      console.error('Error detallado:', e);
+      // Muestra la razón exacta devuelta por el plugin Kotlin
+      const errorMessage = e?.message || e?.errorMessage || 'Error desconocido iniciando simulación.';
+      alert(`❌ No se pudo iniciar:\n\n${errorMessage}`);
+      
+      // Vuelve a consultar la configuración para abrir el modal si algo falta
+      checkSystemConfig();
     }
   };
 
@@ -100,6 +113,7 @@ export const App: React.FC = () => {
         />
         <Marker position={position} icon={customIcon} />
         <MapEvents />
+        <MapController center={position} /> {/* <-- Añadir esto */}
       </MapContainer>
 
       <div style={styles.glassPanel}>

@@ -9,29 +9,40 @@ interface Props {
 export const ConfigCheckModal: React.FC<Props> = ({ config, onRecheck }) => {
   if (!config) return null;
 
-  const hasError = !config.isGpsEnabled || !config.isMockAppSelected;
+  const hasError =
+    !config.hasLocationPermission ||
+    !config.isGpsEnabled ||
+    !config.isMockAppSelected ||
+    !config.hasNotificationPermission;
+
   if (!hasError) return null;
 
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        <h2>{"⚠️ Configuración Requerida"}</h2>
-        <p style={{ color: '#aaa', fontSize: '0.9rem' }}>
-          Para que la simulación de ubicación funcione, debes corregir los siguientes puntos:
+        <h2>⚠️ Requisitos Faltantes</h2>
+        <p>
+          Para poder simular la ubicación del GPS, debes solucionar los elementos marcados con ❌:
         </p>
 
         <ul style={styles.list}>
+          {/* 1. Permiso de ubicación app */}
           <li style={styles.item}>
-            <span>
+            <div>
+              {config.hasLocationPermission ? '✅ ' : '❌ '}
+              Permiso de Ubicación en App
+            </div>
+          </li>
+
+          {/* 2. GPS del teléfono */}
+          <li style={styles.item}>
+            <div>
               {config.isGpsEnabled ? '✅ ' : '❌ '}
-              Ubicación / GPS activado
-            </span>
+              GPS / Ubicación Encendida
+            </div>
             {!config.isGpsEnabled && (
               <button
-                type="button"
-                onClick={() => {
-                  MockLocation.openLocationSettings();
-                }}
+                onClick={() => MockLocation.openLocationSettings()}
                 style={styles.btnSmall}
               >
                 Activar GPS
@@ -39,31 +50,32 @@ export const ConfigCheckModal: React.FC<Props> = ({ config, onRecheck }) => {
             )}
           </li>
 
+          {/* 3. Elegida en Desarrollo */}
           <li style={styles.item}>
-            <span>
+            <div>
               {config.isMockAppSelected ? '✅ ' : '❌ '}
-              App elegida para simular ubicación
-            </span>
+              Elegida en 'Ubicación Falsa'
+            </div>
             {!config.isMockAppSelected && (
               <button
-                type="button"
-                onClick={() => {
-                  MockLocation.openDeveloperSettings();
-                }}
+                onClick={() => MockLocation.openDeveloperSettings()}
                 style={styles.btnSmall}
               >
-                Ajustes de Desarrollador
+                Ir a Desarrollo
               </button>
             )}
           </li>
+
+          {/* 4. Notificaciones */}
+          {!config.hasNotificationPermission && (
+            <li style={styles.item}>
+              <div>❌ Permiso de Notificaciones (Requerido)</div>
+            </li>
+          )}
         </ul>
 
-        <button
-          type="button"
-          onClick={onRecheck}
-          style={styles.btnPrimary}
-        >
-          {"🔄 Volver a comprobar"}
+        <button onClick={onRecheck} style={styles.btnPrimary}>
+          🔄 Recomprobar Estado
         </button>
       </div>
     </div>
@@ -77,7 +89,7 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(0,0,0,0.8)',
     backdropFilter: 'blur(8px)',
     zIndex: 9999,
     display: 'flex',
@@ -86,7 +98,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '20px',
   },
   modal: {
-    background: 'rgba(30, 30, 40, 0.85)',
+    background: 'rgba(30, 30, 40, 0.9)',
     border: '1px solid rgba(255, 255, 255, 0.2)',
     borderRadius: '16px',
     padding: '24px',
@@ -95,19 +107,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#fff',
     boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
   },
-  list: {
-    listStyle: 'none',
-    padding: 0,
-    margin: '20px 0',
-  },
+  list: { listStyle: 'none', padding: 0, margin: '20px 0' },
   item: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    margin: '12px 0',
+    margin: '10px 0',
     padding: '10px',
     background: 'rgba(255,255,255,0.05)',
     borderRadius: '8px',
+    fontSize: '0.88rem',
   },
   btnSmall: {
     background: '#3b82f6',
@@ -116,7 +125,8 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '6px 12px',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '0.8rem',
+    fontSize: '0.78rem',
+    whiteSpace: 'nowrap',
   },
   btnPrimary: {
     width: '100%',

@@ -49,36 +49,6 @@ class MockLocationService : Service() {
         return START_STICKY
     }
 
-    private fun setupTestProvider() {
-        try {
-            locationManager?.addTestProvider(
-                providerName,
-                false, false, false, false, true, true, true,
-                android.location.Provider.POWER_LOW,
-                android.location.Provider.ACCURACY_FINE
-            )
-            locationManager?.setTestProviderEnabled(providerName, true)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun injectMockLocation(lat: Double, lng: Double) {
-        try {
-            val mockLocation = Location(providerName).apply {
-                this.latitude = lat
-                this.longitude = lng
-                this.altitude = 3.0
-                this.time = System.currentTimeMillis()
-                this.accuracy = 1.0f
-                this.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-            }
-            locationManager?.setTestProviderLocation(providerName, mockLocation)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -109,6 +79,49 @@ class MockLocationService : Service() {
             e.printStackTrace()
         }
         super.onDestroy()
+    }
+
+    private val providers = listOf(
+        LocationManager.GPS_PROVIDER,
+        LocationManager.NETWORK_PROVIDER
+    )
+
+    private fun setupTestProvider() {
+        for (provider in providers) {
+            try {
+                locationManager?.removeTestProvider(provider)
+            } catch (_: Exception) {}
+
+            try {
+                locationManager?.addTestProvider(
+                    provider,
+                    false, false, false, false, true, true, true,
+                    android.location.Provider.POWER_LOW,
+                    android.location.Provider.ACCURACY_FINE
+                )
+                locationManager?.setTestProviderEnabled(provider, true)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun injectMockLocation(lat: Double, lng: Double) {
+        for (provider in providers) {
+            try {
+                val mockLocation = Location(provider).apply {
+                    this.latitude = lat
+                    this.longitude = lng
+                    this.altitude = 3.0
+                    this.time = System.currentTimeMillis()
+                    this.accuracy = 1.0f
+                    this.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+                }
+                locationManager?.setTestProviderLocation(provider, mockLocation)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
