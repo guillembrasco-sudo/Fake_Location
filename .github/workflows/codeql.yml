@@ -49,6 +49,12 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v7
 
+    - name: Setup Node.js
+      if: matrix.language == 'java-kotlin'
+      uses: actions/setup-node@v4
+      with:
+          node-version: 20
+
     # Add any setup steps before running the `github/codeql-action/init` action.
     # This includes steps like installing compilers or runtimes (`actions/setup-node`
     # or others). This is typically only required for manual builds.
@@ -80,6 +86,12 @@ jobs:
 
         # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-cod[...]
         # queries: security-extended,security-and-quality
+
+    - name: Sync Capacitor
+      if: matrix.language == 'java-kotlin'
+      run: |
+          npm ci
+          npx cap sync android
 
     - name: Custom Build for Java (Android)
       if: matrix.language == 'java-kotlin'
