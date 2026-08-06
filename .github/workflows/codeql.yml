@@ -55,7 +55,7 @@ jobs:
     # - name: Setup runtime (example)
     #   uses: actions/setup-example@v1
 
-    - name: Setup Java JDK
+    - name: Setup Java JDK 17
       if: matrix.language == 'java-kotlin'
       uses: actions/setup-java@v5
       with:
@@ -66,7 +66,7 @@ jobs:
       if: matrix.language == 'java-kotlin'
       uses: android-actions/setup-android@v3
       with:
-        packages: 'platforms;android-34 build-tools;34.0.0'
+          accept-android-sdk-licenses: true
   
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -81,29 +81,12 @@ jobs:
         # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-cod[...]
         # queries: security-extended,security-and-quality
 
-    - name: Accept Android SDK licenses
-      if: matrix.language == 'java-kotlin'
-      run: |
-        if [ -n "$ANDROID_SDK_ROOT" ] && [ -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
-          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-        else
-          echo "SDK manager not found; skipping license acceptance"
-        fi
-
     - name: Custom Build for Java (Android)
       if: matrix.language == 'java-kotlin'
       run: |
           cd android
           chmod +x gradlew
-          # Use the JAVA_HOME provided by setup-java; include --stacktrace and --info for diagnostics
-          ./gradlew assembleDebug --no-daemon --stacktrace --info -Dorg.gradle.java.home="$JAVA_HOME"
-
-    - name: Run manual build steps
-      if: matrix.build-mode == 'manual'
-      shell: bash
-      run: |
-        echo 'Using manual build mode. If you need to add custom build steps for other languages, add them here.'
-        echo 'This step no longer exits with failure by default.'
+          ./gradlew assembleDebug --no-daemon
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
