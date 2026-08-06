@@ -22,20 +22,10 @@ on:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
-    # Runner size impacts CodeQL analysis time. To learn more, please see:
-    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
-    #   - https://gh.io/supported-runners-and-hardware-resources
-    #   - https://gh.io/using-larger-runners (GitHub.com only)
-    # Consider using larger runners or machines with greater resources for possible analysis time improvements.
     runs-on: ubuntu-latest
     permissions:
-      # required for all workflows
       security-events: write
-
-      # required to fetch internal or private CodeQL packs
       packages: read
-
-      # only required for workflows in private repositories
       actions: read
       contents: read
 
@@ -50,7 +40,7 @@ jobs:
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
         # Use `c-cpp` to analyze code written in C, C++ or both
         # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
-        # Use 'javascript-typescript' to analyze code written in JavaScript, TypeScript or both
+        # Use 'javascript-typescript' to analyze code written in Java, TypeScript or both
         # To learn more about changing the languages that are analyzed or customizing the build mode for your analysis,
         # see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning.
         # If you are analyzing a compiled language, you can modify the 'build-mode' for that language to customize how
@@ -69,12 +59,17 @@ jobs:
       if: matrix.language == 'java-kotlin'
       uses: actions/setup-java@v4
       with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: 'temurin'
+          java-version: '11'
 
     - name: Setup Android SDK
       if: matrix.language == 'java-kotlin'
       uses: android-actions/setup-android@v3
+      with:
+        # Adjust these values to match your project's compileSdk and buildToolsVersion
+        api-levels: '31'
+        build-tools: '31.0.0'
+        components: 'platform-tools,build-tools;31.0.0,platform;android-31'
   
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -86,30 +81,32 @@ jobs:
         # By default, queries listed here will override any specified in a config file.
         # Prefix the list here with "+" to use these queries and those in the config file.
 
-        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
+        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-cod[...]
         # queries: security-extended,security-and-quality
 
-    - name: Custom Build for Java
+    - name: Accept Android SDK licenses
+      if: matrix.language == 'java-kotlin'
+      run: |
+        if [ -n "$ANDROID_SDK_ROOT" ] && [ -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+        else
+          echo "SDK manager not found; skipping license acceptance"
+        fi
+
+    - name: Custom Build for Java (Android)
       if: matrix.language == 'java-kotlin'
       run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace --info -Dorg.gradle.java.home=$JAVA_HOME
-      env:
-          JAVA_HOME: ${{ env.JAVA_HOME }}
+          # Use the JAVA_HOME provided by setup-java; include --stacktrace and --info for diagnostics
+          ./gradlew assembleDebug --no-daemon --stacktrace --info -Dorg.gradle.java.home="$JAVA_HOME"
 
-
-          
     - name: Run manual build steps
       if: matrix.build-mode == 'manual'
       shell: bash
       run: |
-        echo 'If you are using a "manual" build mode for one or more of the' \
-          'languages you are analyzing, replace this with the commands to build' \
-          'your code, for example:'
-        echo '  make bootstrap'
-        echo '  make release'
-        exit 1
+        echo 'Using manual build mode. If you need to add custom build steps for other languages, add them here.'
+        echo 'This step no longer exits with failure by default.'
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
