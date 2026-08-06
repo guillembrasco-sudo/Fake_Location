@@ -57,19 +57,16 @@ jobs:
 
     - name: Setup Java JDK
       if: matrix.language == 'java-kotlin'
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
-          distribution: 'temurin'
-          java-version: '11'
+          distribution: 'zulu'
+          java-version: '17'
 
     - name: Setup Android SDK
       if: matrix.language == 'java-kotlin'
       uses: android-actions/setup-android@v3
       with:
-        # Adjust these values to match your project's compileSdk and buildToolsVersion
-        api-levels: '31'
-        build-tools: '31.0.0'
-        components: 'platform-tools,build-tools;31.0.0,platform;android-31'
+        packages: 'platforms;android-34 build-tools;34.0.0'
   
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
