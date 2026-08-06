@@ -1,4 +1,4 @@
-package com.fakelocation.app
+package com.fakeloc.apk
 
 import android.Manifest
 import android.app.AppOpsManager

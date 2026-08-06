@@ -1,4 +1,4 @@
-package com.fakelocation.app
+package com.fakeloc.apk
 
 import android.app.*
 import android.content.Context

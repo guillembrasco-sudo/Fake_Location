@@ -18,43 +18,52 @@ const customIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
+interface MapControllerProps {
+  center: [number, number];
+}
+
+const MapController: React.FC<MapControllerProps> = ({ center }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    map.setView(center, map.getZoom());
+  }, [center, map]);
+
+  return null;
+};
+
+const MapEvents: React.FC<{ onClick: (coords: [number, number]) => void }> = ({ onClick }) => {
+  useMapEvents({
+    click(e) {
+      onClick([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+
+  return null;
+};
+
 export const App: React.FC = () => {
   const [position, setPosition] = useState<[number, number]>([40.416775, -3.70379]);
   const [isMocking, setIsMocking] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [configStatus, setConfigStatus] = useState<MockConfigStatus | null>(null);
 
-  const MapController: React.FC<{ center: [number, number] }> = ({ center }) => {
-    const map = useMap();
-    useEffect(() => {
-      map.setView(center, map.getZoom());
-    }, [center, map]);
-    return null;
-  };
-
   const checkSystemConfig = async () => {
     try {
       const status = await MockLocation.checkConfig();
       setConfigStatus(status);
-    } catch (e) {
-      console.warn('Ejecutando en entorno Web o Plugin no registrado aún:', e);
+    } catch (error) {
+      console.warn('Ejecutando en entorno Web o Plugin no registrado aún:', error);
     }
   };
 
   useEffect(() => {
-    checkSystemConfig();
+    void (async () => {
+      await checkSystemConfig();
+    })();
   }, []);
 
-  const MapEvents = () => {
-    useMapEvents({
-      click(e) {
-        setPosition([e.latlng.lat, e.latlng.lng]);
-      },
-    });
-    return null;
-  };
-
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
@@ -87,14 +96,16 @@ export const App: React.FC = () => {
         });
         setIsMocking(true);
       }
-    } catch (e: any) {
-      console.error('Error detallado:', e);
-      // Muestra la razón exacta devuelta por el plugin Kotlin
-      const errorMessage = e?.message || e?.errorMessage || 'Error desconocido iniciando simulación.';
+    } catch (error: unknown) {
+      console.error('Error detallado:', error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message?: string }).message)
+          : 'Error desconocido iniciando simulación.';
       alert(`❌ No se pudo iniciar:\n\n${errorMessage}`);
-      
-      // Vuelve a consultar la configuración para abrir el modal si algo falta
-      checkSystemConfig();
+      void checkSystemConfig();
     }
   };
 
@@ -112,8 +123,8 @@ export const App: React.FC = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <Marker position={position} icon={customIcon} />
-        <MapEvents />
-        <MapController center={position} /> {/* <-- Añadir esto */}
+        <MapEvents onClick={setPosition} />
+        <MapController center={position} />
       </MapContainer>
 
       <div style={styles.glassPanel}>
