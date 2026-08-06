@@ -97,17 +97,12 @@ class MockLocationPlugin : Plugin() {
                 putExtra("lng", lng)
             }
 
-            val notification = createNotification()
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    1001, 
-                    notification, 
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-                )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
             } else {
-                startForeground(1001, notification)
+                context.startService(intent)
             }
+
             call.resolve()
         } catch (e: SecurityException) {
             call.reject("Falta permiso: Selecciona FakeLocation en 'Aplicación para simular ubicación' en Opciones de Desarrollador.")

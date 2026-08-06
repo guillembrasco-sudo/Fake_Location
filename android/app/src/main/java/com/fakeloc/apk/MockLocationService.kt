@@ -96,8 +96,8 @@ class MockLocationService : Service() {
                 locationManager?.addTestProvider(
                     provider,
                     false, false, false, false, true, true, true,
-                    android.location.Provider.POWER_LOW,
-                    android.location.Provider.ACCURACY_FINE
+                    1,
+                    1
                 )
                 locationManager?.setTestProviderEnabled(provider, true)
             } catch (e: Exception) {
