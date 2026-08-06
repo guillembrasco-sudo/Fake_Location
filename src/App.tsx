@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Capacitor } from "@capacitor/core";
 
 import MockLocation, { type MockConfigStatus } from './services/MockLocation';
 import { ConfigCheckModal } from './components/ConfigCheckModal';
@@ -90,6 +91,9 @@ export const App: React.FC = () => {
         await MockLocation.stopMocking();
         setIsMocking(false);
       } else {
+        console.log(Capacitor.getPlatform());
+        console.log(Capacitor.isNativePlatform());
+        console.log(Capacitor.isPluginAvailable("MockLocation"));
         await MockLocation.startMocking({
           lat: position[0],
           lng: position[1],
